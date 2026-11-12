@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desi Open World 3D - Bikes, Cars & Life Sim</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+        body { overflow: hidden; background: #000; }
+        #game-container { width: 100vw; height: 100vh; display: block; }
+
+        /* HUD & Stats */
+        #hud { position: absolute; top: 15px; left: 15px; color: white; background: rgba(0,0,0,0.65); padding: 12px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(5px); width: 240px; }
+        .stat-row { margin-bottom: 8px; font-size: 13px; font-weight: bold; }
+        .bar-bg { width: 100%; height: 8px; background: #333; border-radius: 4px; overflow: hidden; margin-top: 3px; }
+        .bar-fill { height: 100%; transition: width 0.3s; }
+        #hp-bar { background: #ff3b30; width: 100%; }
+        #hunger-bar { background: #ff9500; width: 80%; }
+        #energy-bar { background: #34c759; width: 90%; }
+        #hygiene-bar { background: #007aff; width: 85%; }
+
+        /* Controls Help */
+        #controls-info { position: absolute; bottom: 15px; left: 15px; color: #eee; background: rgba(0,0,0,0.65); padding: 12px; border-radius: 10px; font-size: 12px; line-height: 1.6; border: 1px solid rgba(255,255,255,0.15); }
+        #controls-info span { color: #ffcc00; font-weight: bold; }
+
+        /* Action Prompt */
+        #prompt { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: #ffcc00; padding: 10px 22px; border-radius: 25px; font-weight: bold; font-size: 15px; display: none; border: 2px solid #ffcc00; box-shadow: 0 0 15px rgba(255,204,0,0.4); }
+
+        /* Smartphone UI */
+        #phone-btn { position: absolute; bottom: 20px; right: 20px; background: linear-gradient(135deg, #ff6b00, #ff2a00); color: white; border: none; padding: 14px 20px; border-radius: 50px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(255,70,0,0.5); transition: transform 0.2s; }
+        #phone-btn:hover { transform: scale(1.08); }
+
+        #phone-ui { position: absolute; bottom: 80px; right: 20px; width: 260px; background: #1c1c1e; border: 4px solid #3a3a3c; border-radius: 28px; padding: 15px; color: white; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        #phone-screen { background: #2c2c2e; border-radius: 15px; padding: 10px; text-align: center; margin-bottom: 10px; }
+        #dial-display { font-size: 22px; font-weight: bold; letter-spacing: 3px; color: #34c759; height: 30px; }
+        #cheat-hint { font-size: 10px; color: #aaa; margin-top: 5px; line-height: 1.4; }
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .key { background: #3a3a3c; border: none; color: white; padding: 12px; border-radius: 50%; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .key:hover { background: #505054; }
+        .key-call { background: #34c759; grid-column: span 2; border-radius: 20px; }
+        .key-clear { background: #ff3b30; border-radius: 20px; }
+
+        /* Notification Toast */
+        #toast { position: absolute; top: 15px; right: 15px; background: #34c759; color: #000; font-weight: bold; padding: 10px 18px; border-radius: 8px; opacity: 0; transition: opacity 0.4s; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+<div id="game-container"></div>
+
+<!-- Player Stats HUD -->
+<div id="hud">
+    <div style="font-size: 15px; color: #ffcc00; margin-bottom: 8px;">🇮🇳 DESI OPEN WORLD 3D</div>
+    <div class="stat-row">Health (HP): <span id="hp-val">100</span>%<div class="bar-bg"><div id="hp-bar" class="bar-fill"></div></div></div>
+    <div class="stat-row">Bhookh (Hunger): <span id="hunger-val">80</span>%<div class="bar-bg"><div id="hunger-bar" class="bar-fill"></div></div></div>
+    <div class="stat-row">Energy (Neend): <span id="energy-val">90</span>%<div class="bar-bg"><div id="energy-bar" class="bar-fill"></div></div></div>
+    <div class="stat-row">Safai (Hygiene): <span id="hygiene-val">85</span>%<div class="bar-bg"><div id="hygiene-bar" class="bar-fill"></div></div></div>
+    <div style="font-size: 12px; margin-top: 5px; color: #00e5ff;">Mode: <span id="mode-text">Walking</span> | KOs: <span id="ko-count">0</span></div>
+</div>
+
+<!-- Controls Guide -->
+<div id="controls-info">
+    <span>W A S D / Arrows:</span> Chalna / Drive Karna<br>
+    <span>F Key:</span> Punch / Fighting Karna<br>
+    <span>E Key:</span> Gaadi mein Baithna / Ghar ke kaam (Khaana, Sona, Nahana)<br>
+    <span>P Key:</span> Mobile Phone Kholna (Gaadiyan bulane ke liye)
+</div>
+
+<!-- Interactive Prompt -->
+<div id="prompt">Press 'E' to Interact</div>
+<div id="toast">Vehicle Spawned!</div>
+
+<!-- Mobile Phone UI -->
+<button id="phone-btn" onclick="togglePhone()">📱 Phone (P)</button>
+<div id="phone-ui">
+    <div id="phone-screen">
+        <div style="font-size: 11px; color: #8e8e93;">CHEAT DIALER</div>
+        <div id="dial-display"></div>
+        <div id="cheat-hint">
+            <b>Codes:</b> 9999 (Bullet Bike) | 4000 (Sports Bike)<br>
+            7000 (Thar SUV) | 1000 (Fortuner) | 3000 (Helicopter)<br>
+            1111 (Full Health & Stats)
+        </div>
+    </div>
+    <div class="keypad">
+        <button class="key" onclick="pressKey('1')">1</button>
+        <button class="key" onclick="pressKey('2')">2</button>
+        <button class="key" onclick="pressKey('3')">3</button>
+        <button class="key" onclick="pressKey('4')">4</button>
+        <button class="key" onclick="pressKey('5')">5</button>
+        <button class="key" onclick="pressKey('6')">6</button>
+        <button class="key" onclick="pressKey('7')">7</button>
+        <button class="key" onclick="pressKey('8')">8</button>
+        <button class="key" onclick="pressKey('9')">9</button>
+        <button class="key key-clear" onclick="clearDial()">C</button>
+        <button class="key" onclick="pressKey('0')">0</button>
+        <button class="key key-call" onclick="callCheat()">📞 CALL</button>
+    </div>
+</div>
+
+<!-- Three.js CDN -->
+<script src="https://cloudflare.com"></script>
+
+<script>
+    // --- GAME STATE ---
+    const stats = { hp: 100, hunger: 80, energy: 90, hygiene: 85, kos: 0 };
+    let isDriving = false;
+    let currentVehicle = null;
+    let isSitting = false;
+    let dialNumber = "";
+    const keys = {};
+
+    // --- THREE.JS SETUP ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87ceeb);
+    scene.fog = new THREE.Fog(0x87ceeb, 40, 220);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.getElementById('game-container').appendChild(renderer.domElement);
+
+    // --- LIGHTING ---
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    dirLight.position.set(50, 100, 50);
+    dirLight.castShadow = true;
+    dirLight.shadow.camera.top = 100;
+    dirLight.shadow.camera.bottom = -100;
+    dirLight.shadow.camera.left = -100;
+    dirLight.shadow.camera.right = 100;
+    scene.add(dirLight);
+
+    // --- GROUND & ROADS ---
+    const groundGeo = new THREE.PlaneGeometry(500, 500);
+    const groundMat = new THREE.MeshLambertMaterial({ color: 0x3b8c3b });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    function createRoad(x, z, w, d) {
+        const road = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshLambertMaterial({ color: 0x2c2c2c }));
+        road.rotation.x = -Math.PI / 2;
+        road.position.set(x, 0.05, z);
+        road.receiveShadow = true;
+        scene.add(road);
+    }
+    createRoad(0, 0, 16, 400);
+    createRoad(0, 0, 400, 16);
+    createRoad(60, 0, 12, 400);
+    createRoad(-60, 0, 12, 400);
+
+    // --- PLAYER CHARACTER ---
+    const playerGroup = new THREE.Group();
+    const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.3, 0.5), new THREE.MeshLambertMaterial({ color: 0xff5722 }));
+    bodyMesh.position.y = 1.35;
+    bodyMesh.castShadow = true;
+    playerGroup.add(bodyMesh);
+
+    const headMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshLambertMaterial({ color: 0xffcc99 }));
+    headMesh.position.y = 2.35;
+    headMesh.castShadow = true;
+    playerGroup.add(headMesh);
+
+    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.0, 0.3), new THREE.MeshLambertMaterial({ color: 0xffcc99 }));
+    rightArm.position.set(0.65, 1.4, 0);
+    playerGroup.add(rightArm);
+
+    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.0, 0.3), new THREE.MeshLambertMaterial({ color: 0xffcc99 }));
+    leftArm.position.set(-0.65, 1.4, 0);
+    playerGroup.add(leftArm);
+
+    playerGroup.position.set(0, 0, 10);
+    scene.add(playerGroup);
+
+    // --- SAFE HOUSE & LIFE SIM ZONES (EAT, SLEEP, BATH, SIT) ---
+    const interactables = [];
+
+    // House Floor & Walls
+    const houseFloor = new THREE.Mesh(new THREE.BoxGeometry(22, 0.2, 22), new THREE.MeshLambertMaterial({ color: 0xd7ccc8 }));
+    houseFloor.position.set(-25, 0.1, -25);
+    scene.add(houseFloor);
+
+    function createZone(x, z, color, label, actionType, w = 2.5, h = 1, d = 2.5) {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color }));
+        mesh.position.set(x, h / 2 + 0.1, z);
+        mesh.castShadow = true;
+        scene.add(mesh);
